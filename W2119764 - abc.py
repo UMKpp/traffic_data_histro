@@ -4,7 +4,7 @@
 
 # Task A: Input Validation
 
-import csv
+import pandas as pd
 
 def leap_year(year): #calculate leap years
     return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
@@ -91,137 +91,92 @@ def validate_continue_input():
 
 def process_csv_data(file_path):
     """
-    Processes the CSV data for the selected date and extracts:
+    Processes the CSV data for the selected date using pandas and extracts:
     - Total vehicles
     - Total trucks
     - Total electric vehicles
     - Two-wheeled vehicles, and other requested metrics
     """
-    
-    survey_outcomes = {
-        "total_vehicles": 0,
-        "total_trucks": 0,
-        "total_electric_vehicles": 0,
-        "total_two_wheeled_vehicles": 0,
-        "busses_north_junction": 0,
-        "vehicle_no_turns": 0,
-        "truck_percentage": 0,
-        "avg_bicycle_per_hour": 0,
-        "total_bicycle": 0,
-        "total_vehicles_over_speed_limit": 0,
-        "only_elm_vehicles": 0,
-        "only_hanley_vehicles": 0,
-        "scooter_percentage_elm": 0,
-        "scooter_elm": 0,
-        "scooter_percentage_elm": 0,
-        "highest_numbers_vehicles": 0,
-        "hanley_peak_hour_count": 0,
-        "hanley_peak_hours": [],
-        "total_rain_hours": 0,
-        "rain_hours": set(),  # Use a set to track unique rain hours
-    }
-    
-    hourly_count = {} #a dictionary to store hours
-    #hanley_hourly_count = {} a dictionary to store hours
-    #elm_hourly_count = {} a dictionary to store hours
-
     try:
-        #open the csv file in read mode
-        with open(file_path, mode='r', encoding='utf-8') as file:
-            #another dictionary to read rows as dicts
-            reader = csv.DictReader(file)
-            
-            # Iterate through each row in the CSV file
-            for row in reader:
-                # Count total vehicles
-                survey_outcomes["total_vehicles"] += 1
-
-                # Count total trucks
-                if row["VehicleType"].strip().lower() == "truck":
-                    survey_outcomes["total_trucks"] += 1
-                    
-                # Count bicycles
-                if row["VehicleType"].strip().lower() == "bicycle":
-                    survey_outcomes["total_bicycle"] += 1
-
-                # Count total electric vehicles
-                if row["elctricHybrid"].strip().lower() == "true":
-                    survey_outcomes["total_electric_vehicles"] += 1
-
-                # Count total two-wheeled vehicles
-                if row["VehicleType"].strip().lower() in ["bicycle", "motorcycle", "scooter"]:
-                    survey_outcomes["total_two_wheeled_vehicles"] += 1
-                
-                # Count buses leaving Elm Avenue/Rabbit Road heading north
-                if (
-                    row["JunctionName"].strip() == "Elm Avenue/Rabbit Road" and
-                    row["travel_Direction_out"].strip().upper() == "N" and
-                    row["VehicleType"].strip().lower() == "buss"
-                ):
-                    survey_outcomes["busses_north_junction"] += 1
-
-                # Count vehicles not turning left or right
-                if row["travel_Direction_in"].strip() == row["travel_Direction_out"].strip():
-                    survey_outcomes["vehicle_no_turns"] += 1
-
-                # Count vehicles over speed limit
-                if float(row["VehicleSpeed"]) > float(row["JunctionSpeedLimit"]):
-                    survey_outcomes["total_vehicles_over_speed_limit"] += 1
-                
-                # Count only Elm Avenue/Rabbit Road vehicles
-                if row["JunctionName"].strip().lower() == "elm avenue/rabbit road":
-                    survey_outcomes["only_elm_vehicles"] += 1
-                
-                # Count only Hanley Highway/Westway vehicles
-                if row["JunctionName"] == "Hanley Highway/Westway":
-                    survey_outcomes["only_hanley_vehicles"] += 1
-                    
-                # Count scooters at Elm Avenue/Rabbit Road
-                if (row["VehicleType"].strip().lower() == "scooter")and (row["JunctionName"].strip().lower() == "elm avenue/rabbit road"):
-                   survey_outcomes["scooter_elm"] += 1
-                
-                # Check for rain condition and extract the hour
-                weather_condition = row["Weather_Conditions"].strip().lower()
-                if "rain" in weather_condition:  # Check if it's "Light rain" or "Heavy rain"
-                    hour = row["timeOfDay"].split(":")[0]  # Extract the hour part
-                    survey_outcomes["rain_hours"].add(hour)  # Add the hour to the set
-                
-                # Calculate the busiest hour(s)
-                hour = row["timeOfDay"].split(":")[0]
-                hourly_count[hour] = hourly_count.get(hour, 0) + 1
-
-            # Determine the busiest hour
-            max_count = max(hourly_count.values(), default=0)
-            survey_outcomes["hanley_peak_hour_count"] = max_count
-            survey_outcomes["hanley_peak_hours"] = [
-                f"{hour}:00-{int(hour)+1}:00"
-                for hour, count in hourly_count.items()
-                if count == max_count         
-            ]
-            
-            # Calculate highest vehicle count in hanley in an hour
-            survey_outcomes["highest_numbers_vehicles"] = max_count
-            
-        #calculate average of bicycle
-            
-        survey_outcomes["avg_bicycle_per_hour"] = round(survey_outcomes["total_bicycle"]/ 24)
-            
-            
-        #calculate truck precentage  
-        if survey_outcomes["total_vehicles"] > 0:
-            survey_outcomes["truck_percentage"] = round((survey_outcomes["total_trucks"] / survey_outcomes["total_vehicles"]) * 100)
-            
-        # Calculate percentage of scooters at Elm Avenue/Rabbit Road
-        if survey_outcomes["only_elm_vehicles"] > 0:
-            survey_outcomes["scooter_percentage_elm"] = round((survey_outcomes["scooter_elm"] / survey_outcomes["only_elm_vehicles"]) * 100)
-
-        # Calculate total rain hours
-        survey_outcomes["total_rain_hours"] = len(survey_outcomes["rain_hours"])
-
-    except FileNotFoundError:  #handle the fileNotFoundError
+        df = pd.read_csv(file_path, encoding='utf-8')
+    except FileNotFoundError:
         print(f"Error: File '{file_path}' not found.")
         return None
-    return survey_outcomes #return outcomes
+
+    # Clean up column names and strings for robust comparisons
+    df['VehicleType_lower'] = df['VehicleType'].astype(str).str.strip().str.lower()
+    df['JunctionName_lower'] = df['JunctionName'].astype(str).str.strip().str.lower()
+    df['travel_Direction_out_upper'] = df['travel_Direction_out'].astype(str).str.strip().str.upper()
+    df['travel_Direction_in'] = df['travel_Direction_in'].astype(str).str.strip()
+    df['travel_Direction_out'] = df['travel_Direction_out'].astype(str).str.strip()
+
+    total_vehicles = len(df)
+    
+    # Base dictionary setup
+    survey_outcomes = {
+        "total_vehicles": total_vehicles,
+        "total_trucks": int((df['VehicleType_lower'] == 'truck').sum()),
+        "total_electric_vehicles": int((df['elctricHybrid'].astype(str).str.strip().str.lower() == 'true').sum()),
+        "total_two_wheeled_vehicles": int(df['VehicleType_lower'].isin(['bicycle', 'motorcycle', 'scooter']).sum()),
+        "busses_north_junction": int((
+            (df['JunctionName_lower'] == 'elm avenue/rabbit road') & 
+            (df['travel_Direction_out_upper'] == 'N') & 
+            (df['VehicleType_lower'] == 'buss')
+        ).sum()),
+        "vehicle_no_turns": int((df['travel_Direction_in'] == df['travel_Direction_out']).sum()),
+        "total_bicycle": int((df['VehicleType_lower'] == 'bicycle').sum()),
+        "total_vehicles_over_speed_limit": int((pd.to_numeric(df['VehicleSpeed'], errors='coerce') > pd.to_numeric(df['JunctionSpeedLimit'], errors='coerce')).sum()),
+        "only_elm_vehicles": int((df['JunctionName_lower'] == 'elm avenue/rabbit road').sum()),
+        "only_hanley_vehicles": int((df['JunctionName_lower'] == 'hanley highway/westway').sum()),
+        "scooter_elm": int((
+            (df['VehicleType_lower'] == 'scooter') & 
+            (df['JunctionName_lower'] == 'elm avenue/rabbit road')
+        ).sum()),
+    }
+
+    # Weather conditions: rain hours
+    df['Weather_lower'] = df['Weather_Conditions'].astype(str).str.strip().str.lower()
+    rain_df = df[df['Weather_lower'].str.contains('rain', na=False)].copy()
+    if not rain_df.empty:
+        rain_df['hour'] = rain_df['timeOfDay'].str.split(':').str[0]
+        rain_hours = set(rain_df['hour'].unique())
+    else:
+        rain_hours = set()
+    
+    survey_outcomes['rain_hours'] = rain_hours
+    survey_outcomes['total_rain_hours'] = len(rain_hours)
+
+    # Hourly counts for Hanley Highway specifically
+    hanley_df = df[df['JunctionName_lower'] == 'hanley highway/westway'].copy()
+    if not hanley_df.empty:
+        hanley_df['hour'] = hanley_df['timeOfDay'].str.split(':').str[0]
+        hourly_counts = hanley_df['hour'].value_counts()
+        if not hourly_counts.empty:
+            max_count = int(hourly_counts.max())
+            peak_hours = hourly_counts[hourly_counts == max_count].index.tolist()
+        else:
+            max_count = 0
+            peak_hours = []
+    else:
+        max_count = 0
+        peak_hours = []
+
+    survey_outcomes["hanley_peak_hour_count"] = max_count
+    survey_outcomes["hanley_peak_hours"] = [f"{hour}:00-{int(hour)+1}:00" for hour in sorted(peak_hours)]
+    survey_outcomes["highest_numbers_vehicles"] = max_count
+    
+    # Derived calculations
+    survey_outcomes["avg_bicycle_per_hour"] = round(survey_outcomes["total_bicycle"] / 24)
+    
+    survey_outcomes["truck_percentage"] = 0
+    if total_vehicles > 0:
+        survey_outcomes["truck_percentage"] = round((survey_outcomes["total_trucks"] / total_vehicles) * 100)
+        
+    survey_outcomes["scooter_percentage_elm"] = 0
+    if survey_outcomes["only_elm_vehicles"] > 0:
+        survey_outcomes["scooter_percentage_elm"] = round((survey_outcomes["scooter_elm"] / survey_outcomes["only_elm_vehicles"]) * 100)
+
+    return survey_outcomes
 
 
 def display_outcomes(survey_outcomes, file_path):
