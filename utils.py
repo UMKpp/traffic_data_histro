@@ -1,3 +1,12 @@
+import argparse
+
+def get_cli_args():
+    parser = argparse.ArgumentParser(description="Process traffic data for a specific date.")
+    parser.add_argument('--date', nargs=3, type=int, metavar=('DD', 'MM', 'YYYY'),
+                        help="Date of the survey (e.g. --date 15 06 2024)")
+    args, _ = parser.parse_known_args()
+    return args
+
 def leap_year(year):
     """Calculate leap years."""
     return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
