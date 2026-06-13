@@ -4,7 +4,7 @@
 
 # Task A: Input Validation
 
-import csv
+import pandas as pd
 import tkinter as tk
 
 canvas_width = 1400
@@ -82,28 +82,22 @@ def process_csv_data(file_path):
         "hourly_count_elm" : {}, #vehicles per hour at elm
     }
     try:
-        with open(file_path, mode = 'r', encoding = 'utf-8') as file: #prevent encoding issues by using utf-8
-            reader = csv.DictReader(file)  
-            for row in reader:
-                junction = row["JunctionName"].strip().lower() #extract junction name from the row
-                hour = row["timeOfDay"].split(":")[0] #extract hour from the row
-                
-                if len(hour) == 1 :
-                    hour = "0" + hour;
-                
-                #hanley highway logics
-                if junction == "hanley highway/westway" :
-                    survey_outcomes["hourly_count_hanley"][hour] = (
-                        survey_outcomes["hourly_count_hanley"].get(hour,0) + 1
-                        )
-                #elm avenue logics
-                elif junction == "elm avenue/rabbit road" :
-                    survey_outcomes["hourly_count_elm"][hour] = (
-                        survey_outcomes["hourly_count_elm"].get(hour,0) + 1
-                        )
-                    
+        df = pd.read_csv(file_path, encoding='utf-8')
     except FileNotFoundError:
         print(f"Error file '{file_path}'not found.")
+        return survey_outcomes
+        
+    # Clean up column values
+    df['JunctionName_lower'] = df['JunctionName'].astype(str).str.strip().str.lower()
+    df['hour'] = df['timeOfDay'].astype(str).str.split(':').str[0].str.zfill(2)
+
+    # Hanley Highway
+    hanley_df = df[df['JunctionName_lower'] == 'hanley highway/westway']
+    survey_outcomes["hourly_count_hanley"] = hanley_df['hour'].value_counts().to_dict()
+
+    # Elm Avenue
+    elm_df = df[df['JunctionName_lower'] == 'elm avenue/rabbit road']
+    survey_outcomes["hourly_count_elm"] = elm_df['hour'].value_counts().to_dict()
     
     #print processed data in shell - hanley
     print("Processed Data for Hanley:")
