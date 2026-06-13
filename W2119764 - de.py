@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils import validate_date_input, validate_continue_input
+from utils import validate_date_input, validate_continue_input, get_cli_args
 
 # Task B: Processed Outcomes
 def process_csv_data(file_path):
@@ -19,7 +19,19 @@ def process_csv_data(file_path):
     try:
         df = pd.read_csv(file_path, encoding='utf-8')
     except FileNotFoundError:
-        print(f"Error file '{file_path}'not found.")
+        print(f"Error file '{file_path}' not found.")
+        return survey_outcomes
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file_path}' is empty.")
+        return survey_outcomes
+    except Exception as e:
+        print(f"Error reading file '{file_path}': {e}")
+        return survey_outcomes
+        
+    required_columns = {'JunctionName', 'timeOfDay'}
+    if not required_columns.issubset(df.columns):
+        missing = required_columns - set(df.columns)
+        print(f"Error: Missing required columns in dataset '{file_path}': {missing}")
         return survey_outcomes
         
     # Clean up column values
@@ -121,18 +133,31 @@ class MultiCSVProcessor:
         self.current_data = None
 
     def handle_user_interaction(self):
-        #main loop for handling user interaction and processing datasets
-        while True:
-            file_path, date = validate_date_input() #prompt user to enter a file path
-            self.current_data = self.load_csv_file(file_path) #load and process csv file
-            if self.current_data:
-                save_results_to_file(self.current_data, file_path) #save the processed results to a file
-                hanley_data = self.current_data["hourly_count_hanley"] #retrieve data for hanley 
-                elm_data = self.current_data["hourly_count_elm"] #retrieve data for elm
-                histogram_app = HistogramApp(hanley_data, elm_data, date) #initialize the histogram
+        args = get_cli_args()
+        if args.date:
+            day, month, year = args.date
+            file_path = f"traffic_data{day:02d}{month:02d}{year}.csv"
+            date = f"{day:02d}/{month:02d}/{year}"
+            self.current_data = self.load_csv_file(file_path)
+            if self.current_data and (self.current_data.get("hourly_count_hanley") or self.current_data.get("hourly_count_elm")):
+                save_results_to_file(self.current_data, file_path)
+                hanley_data = self.current_data["hourly_count_hanley"]
+                elm_data = self.current_data["hourly_count_elm"]
+                histogram_app = HistogramApp(hanley_data, elm_data, date)
                 histogram_app.run()
-            if not self.process_files(): #check if the user wants to process additional files
-                break
+        else:
+            #main loop for handling user interaction and processing datasets
+            while True:
+                file_path, date = validate_date_input() #prompt user to enter a file path
+                self.current_data = self.load_csv_file(file_path) #load and process csv file
+                if self.current_data and (self.current_data.get("hourly_count_hanley") or self.current_data.get("hourly_count_elm")):
+                    save_results_to_file(self.current_data, file_path) #save the processed results to a file
+                    hanley_data = self.current_data["hourly_count_hanley"] #retrieve data for hanley 
+                    elm_data = self.current_data["hourly_count_elm"] #retrieve data for elm
+                    histogram_app = HistogramApp(hanley_data, elm_data, date) #initialize the histogram
+                    histogram_app.run()
+                if not self.process_files(): #check if the user wants to process additional files
+                    break
 
     def process_files(self):
         return validate_continue_input()
