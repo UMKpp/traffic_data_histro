@@ -6,7 +6,7 @@
 
 import pandas as pd
 
-from utils import validate_date_input, validate_continue_input
+from utils import validate_date_input, validate_continue_input, get_cli_args
 
 def process_csv_data(file_path):
     """
@@ -20,6 +20,18 @@ def process_csv_data(file_path):
         df = pd.read_csv(file_path, encoding='utf-8')
     except FileNotFoundError:
         print(f"Error: File '{file_path}' not found.")
+        return None
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file_path}' is empty.")
+        return None
+    except Exception as e:
+        print(f"Error reading file '{file_path}': {e}")
+        return None
+
+    required_columns = {'VehicleType', 'JunctionName', 'travel_Direction_out', 'travel_Direction_in', 'elctricHybrid', 'VehicleSpeed', 'JunctionSpeedLimit', 'timeOfDay', 'Weather_Conditions'}
+    if not required_columns.issubset(df.columns):
+        missing = required_columns - set(df.columns)
+        print(f"Error: Missing required columns in dataset '{file_path}': {missing}")
         return None
 
     # Clean up column names and strings for robust comparisons
@@ -187,13 +199,22 @@ def save_results_to_file(survey_outcomes, file_name="results.txt"):
 
 
 if __name__ == "__main__":
-    while True:
-        file_path, _ = validate_date_input()  # call user input function
+    args = get_cli_args()
+    if args.date:
+        day, month, year = args.date
+        file_path = f"traffic_data{day:02d}{month:02d}{year}.csv"
         survey_outcomes = process_csv_data(file_path)
-        if survey_outcomes: #if outcomes contain data
+        if survey_outcomes:
             display_outcomes(survey_outcomes, file_path)
-            save_results_to_file(survey_outcomes)  # Save results to a text file
+            save_results_to_file(survey_outcomes)
+    else:
+        while True:
+            file_path, _ = validate_date_input()  # call user input function
+            survey_outcomes = process_csv_data(file_path)
+            if survey_outcomes: #if outcomes contain data
+                display_outcomes(survey_outcomes, file_path)
+                save_results_to_file(survey_outcomes)  # Save results to a text file
 
-        if not validate_continue_input(): #call continue_input function
-            break #exit the programme
+            if not validate_continue_input(): #call continue_input function
+                break #exit the programme
     
